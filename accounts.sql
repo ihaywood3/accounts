@@ -39,6 +39,33 @@ COMMENT ON EXTENSION "uuid-ossp" IS 'generate universally unique identifiers (UU
 
 SET search_path = public, pg_catalog;
 
+--
+-- Name: total_acct(text, date, date); Type: FUNCTION; Schema: public; Owner: ian
+--
+
+CREATE FUNCTION total_acct(text, date, date) RETURNS money
+    LANGUAGE sql
+    AS $_$
+select sum(amount) from chart,txn,split where (chart.name = $1 or chart.name like $1 || '/%') and txn.entered >= $2 and txn.entered <= $3 and split.fk_chart = chart.id and split.fk_txn = txn.id 
+$_$;
+
+
+ALTER FUNCTION public.total_acct(text, date, date) OWNER TO ian;
+
+--
+-- Name: chart_id; Type: SEQUENCE; Schema: public; Owner: ian
+--
+
+CREATE SEQUENCE chart_id
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER TABLE public.chart_id OWNER TO ian;
+
 SET default_tablespace = '';
 
 SET default_with_oids = false;
@@ -48,7 +75,7 @@ SET default_with_oids = false;
 --
 
 CREATE TABLE chart (
-    id integer NOT NULL,
+    id integer DEFAULT nextval('chart_id'::regclass) NOT NULL,
     name text
 );
 
@@ -69,11 +96,62 @@ CREATE TABLE split (
 ALTER TABLE public.split OWNER TO ian;
 
 --
+-- Name: statement; Type: TABLE; Schema: public; Owner: ian; Tablespace: 
+--
+
+CREATE TABLE statement (
+    id integer NOT NULL,
+    comment text,
+    date date,
+    fk_chart integer,
+    amount money,
+    junk text
+);
+
+
+ALTER TABLE public.statement OWNER TO ian;
+
+--
+-- Name: statement_id_seq; Type: SEQUENCE; Schema: public; Owner: ian
+--
+
+CREATE SEQUENCE statement_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER TABLE public.statement_id_seq OWNER TO ian;
+
+--
+-- Name: statement_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: ian
+--
+
+ALTER SEQUENCE statement_id_seq OWNED BY statement.id;
+
+
+--
+-- Name: txn_id; Type: SEQUENCE; Schema: public; Owner: ian
+--
+
+CREATE SEQUENCE txn_id
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER TABLE public.txn_id OWNER TO ian;
+
+--
 -- Name: txn; Type: TABLE; Schema: public; Owner: ian; Tablespace: 
 --
 
 CREATE TABLE txn (
-    id integer NOT NULL,
+    id integer DEFAULT nextval('txn_id'::regclass) NOT NULL,
     comment text,
     pdf bytea,
     entered date DEFAULT now() NOT NULL
@@ -83,46 +161,10 @@ CREATE TABLE txn (
 ALTER TABLE public.txn OWNER TO ian;
 
 --
--- Name: vwaccounts; Type: VIEW; Schema: public; Owner: ian
+-- Name: id; Type: DEFAULT; Schema: public; Owner: ian
 --
 
-CREATE VIEW vwaccounts AS
- SELECT split.fk_txn,
-    split.fk_chart,
-    chart.name,
-    txn.comment,
-    txn.entered,
-    split.amount
-   FROM chart,
-    split,
-    txn
-  WHERE ((split.fk_txn = txn.id) AND (split.fk_chart = chart.id));
-
-
-ALTER TABLE public.vwaccounts OWNER TO ian;
-
---
--- Data for Name: chart; Type: TABLE DATA; Schema: public; Owner: ian
---
-
-COPY chart (id, name) FROM stdin;
-\.
-
-
---
--- Data for Name: split; Type: TABLE DATA; Schema: public; Owner: ian
---
-
-COPY split (fk_txn, fk_chart, amount) FROM stdin;
-\.
-
-
---
--- Data for Name: txn; Type: TABLE DATA; Schema: public; Owner: ian
---
-
-COPY txn (id, comment, pdf, entered) FROM stdin;
-\.
+ALTER TABLE ONLY statement ALTER COLUMN id SET DEFAULT nextval('statement_id_seq'::regclass);
 
 
 --
@@ -131,6 +173,14 @@ COPY txn (id, comment, pdf, entered) FROM stdin;
 
 ALTER TABLE ONLY chart
     ADD CONSTRAINT chart_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: statement_pkey; Type: CONSTRAINT; Schema: public; Owner: ian; Tablespace: 
+--
+
+ALTER TABLE ONLY statement
+    ADD CONSTRAINT statement_pkey PRIMARY KEY (id);
 
 
 --
@@ -155,6 +205,14 @@ ALTER TABLE ONLY split
 
 ALTER TABLE ONLY split
     ADD CONSTRAINT split_fk_txn_fkey FOREIGN KEY (fk_txn) REFERENCES txn(id);
+
+
+--
+-- Name: statement_fk_chart_fkey; Type: FK CONSTRAINT; Schema: public; Owner: ian
+--
+
+ALTER TABLE ONLY statement
+    ADD CONSTRAINT statement_fk_chart_fkey FOREIGN KEY (fk_chart) REFERENCES chart(id);
 
 
 --
