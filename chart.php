@@ -8,12 +8,12 @@
 
 include('connect.php');
 
-$result = pg_query("select * from charts order by \"name\"");
+$result = pg_query("select * from chart order by \"name\"");
 while ($row = pg_fetch_assoc($result)) { 
 ?>
 <tr><td><?= $row['id'] ?></td><td><?= $row['name'] ?></td>
 <td>
-<a href="/edit_chart.phpid=<?= $row['id'] ?>">Edit</a></td></tr>
+<a href="/edit_chart.php?id=<?= $row['id'] ?>">Edit</a></td></tr>
     <?php 
 }
 ?>
